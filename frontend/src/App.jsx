@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import './App.css';
-
-const API_URL = 'http://localhost:3001/api';
+import { API_ENDPOINTS } from './config';
 
 function App() {
   const [projects, setProjects] = useState([]);
@@ -14,11 +13,19 @@ function App() {
 
   const fetchProjects = async () => {
     try {
-      const response = await fetch(`${API_URL}/projects`);
-      const data = await response.json();
-      setProjects(data);
+      // Fetch from API
+      const response = await fetch(API_ENDPOINTS.projects);
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Loaded projects:', data?.length || 0);
+        setProjects(Array.isArray(data) ? data : []);
+      } else {
+        console.error('Failed to fetch projects:', response.status);
+        setProjects([]);
+      }
     } catch (error) {
       console.error('Error fetching projects:', error);
+      setProjects([]);
     } finally {
       setLoading(false);
     }
@@ -67,9 +74,12 @@ function App() {
                   <div className="project-image-container">
                     {project.image ? (
                       <img 
-                        src={`http://localhost:3001${project.image}`} 
+                        src={project.image.startsWith('http') ? project.image : `${API_ENDPOINTS.uploads}/${project.image.replace('/uploads/', '')}`}
                         alt={project.title}
                         className="project-image"
+                        onError={(e) => {
+                          e.target.src = 'https://via.placeholder.com/400x300?text=No+Image';
+                        }}
                       />
                     ) : (
                       <div className="project-image-placeholder">No Image</div>
@@ -109,9 +119,12 @@ function App() {
             <div className="modal-body">
               {selectedProject.image && (
                 <img 
-                  src={`http://localhost:3001${selectedProject.image}`} 
+                  src={selectedProject.image.startsWith('http') ? selectedProject.image : `${API_ENDPOINTS.uploads}/${selectedProject.image.replace('/uploads/', '')}`}
                   alt={selectedProject.title}
                   className="modal-image"
+                  onError={(e) => {
+                    e.target.src = 'https://via.placeholder.com/800x600?text=No+Image';
+                  }}
                 />
               )}
               <h2 className="modal-title">{selectedProject.title}</h2>
