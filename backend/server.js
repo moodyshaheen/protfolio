@@ -51,6 +51,12 @@ app.post('/api/deploy', async (req, res) => {
   }
 });
 
-app.listen(port, () => {
-  console.log(`Server Started on http://localhost:${port}`);
-});
+// For local development
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(port, () => {
+    console.log(`Server Started on http://localhost:${port}`);
+  });
+}
+
+// Export for Vercel
+export default app;
