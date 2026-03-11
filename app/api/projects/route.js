@@ -4,7 +4,7 @@ import fs from 'fs/promises';
 
 import { connectDb } from '../../../lib/server/db.js';
 import Project from '../../../lib/server/models/Project.js';
-import { ensureUploadsDir } from '../../../lib/server/uploads.js';
+import { ensureUploadsDir, uploadToBlob } from '../../../lib/server/uploads.js';
 import { requireAdmin } from '../../../lib/server/auth.js';
 
 export const runtime = 'nodejs';
@@ -59,11 +59,28 @@ export async function POST(req) {
 
     let image = '';
     if (imageFile && typeof imageFile === 'object' && 'arrayBuffer' in imageFile) {
-      const uploadsDir = await ensureUploadsDir();
       const filename = uniqueFilename(imageFile.name);
-      const buffer = Buffer.from(await imageFile.arrayBuffer());
-      await fs.writeFile(path.join(uploadsDir, filename), buffer);
-      image = `/uploads/${filename}`;
+
+      // Use Vercel Blob Storage if on Vercel, otherwise local storage
+      if (process.env.VERCEL && process.env.BLOB_READ_WRITE_TOKEN) {
+        try {
+          const buffer = Buffer.from(await imageFile.arrayBuffer());
+          image = await uploadToBlob(buffer, filename);
+        } catch (blobError) {
+          console.error('Blob upload failed, falling back to local:', blobError);
+          // Fallback to local storage
+          const uploadsDir = await ensureUploadsDir();
+          const buffer = Buffer.from(await imageFile.arrayBuffer());
+          await fs.writeFile(path.join(uploadsDir, filename), buffer);
+          image = `/uploads/${filename}`;
+        }
+      } else {
+        // Local storage for development
+        const uploadsDir = await ensureUploadsDir();
+        const buffer = Buffer.from(await imageFile.arrayBuffer());
+        await fs.writeFile(path.join(uploadsDir, filename), buffer);
+        image = `/uploads/${filename}`;
+      }
     }
 
     const project = await Project.create({
